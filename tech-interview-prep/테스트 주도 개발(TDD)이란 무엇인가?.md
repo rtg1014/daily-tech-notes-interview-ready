@@ -23,3 +23,164 @@
 - 또한, 테스트 가능하며 결합이 느슨한 시스템을 점진적으로 만들어 나갈 수 있습니다.
 - 하지만, 테스트 주도 개발이 오히려 비효율적인 경우도 존재하기 때문에 다른 모든 기술과 마찬가지로 비판적으로 사고하는 것도 중요하다고 생각합니다.
 
+
+> ## 추가자료
+
+[10분 테코톡] 더즈, 티키의 Classic TDD VS Mockist TDD
+출처 : https://www.youtube.com/watch?v=n01foM9tsRo
+
+
+### **📌 Classic TDD vs. Mockist TDD 정리**  
+우아한테크코스 4기 백엔드 더즈, 티키님의 발표 내용을 기반으로, **Classic TDD와 Mockist TDD의 개념, 차이점, 장단점**을 정리하였습니다.
+
+---
+
+## **🔍 1. 개요**
+TDD(Test-Driven Development)를 진행하면서 **테스트를 어떻게 작성할지 고민한 적이 있으신가요?**  
+특히, 테스트 코드에서 **"테스트 더블(Test Double)"**을 사용할지 여부가 중요한 논점이 될 수 있습니다.
+
+**이번 발표에서는 Classic TDD와 Mockist TDD의 차이점을 비교하고, 각 방식의 장단점을 알아봅니다.**  
+
+### **📌 1-1. 테스트 더블이란?**
+- **실제 객체를 사용하기 어려운 경우에 사용하는 가짜 객체**  
+- **테스트 비용을 줄이고, 특정 상황을 시뮬레이션하기 위해 사용**  
+- **대표적인 테스트 더블 종류**
+  - **Dummy**: 아무런 동작을 하지 않는 객체
+  - **Fake**: 실제 동작을 하지만 완전한 구현이 아님 (ex. 인메모리 DB)
+  - **Stub**: 미리 정의된 값을 반환하는 객체
+  - **Spy**: 호출된 내역을 기록하는 객체
+  - **Mock**: 특정 동작이 일어났는지를 검증하는 객체 (이번 발표에서 중점적으로 다룸)
+
+---
+
+## **🔍 2. Classic TDD vs. Mockist TDD**
+Classic TDD와 Mockist TDD의 차이를 이해하기 위해, **주문(Order)과 창고(Warehouse) 시스템을 예시로 살펴보겠습니다.**  
+- 주문이 들어오면 **창고에서 재고를 확인**하고,  
+- **재고가 충분하면 주문이 유효**해지며 창고의 재고가 감소하는 시나리오입니다.  
+
+### **📌 2-1. Classic TDD (실제 객체 사용)**
+✅ **특징**  
+- **실제 객체를 사용하여 테스트를 진행**  
+- 객체의 **내부 상태(state)를 검증**하는 방식 (**상태 검증**)
+- 테스트가 **더 직관적이고 안정적**이지만, **협력 객체가 많아질수록 무거워짐**
+
+✅ **Classic TDD 예제**
+```java
+class OrderTest {
+    @Test
+    void 주문이_가능하면_창고_재고가_감소한다() {
+        // Given
+        Product product = new Product("MacBook");
+        Warehouse warehouse = new Warehouse();
+        warehouse.addStock(product, 10);  // 실제 객체 사용
+
+        Order order = new Order(product, 5);
+
+        // When
+        order.process(warehouse);
+
+        // Then (상태 검증)
+        assertEquals(5, warehouse.getStock(product));  // 재고가 줄었는지 확인
+        assertTrue(order.isValid());  // 주문이 유효한지 확인
+    }
+}
+```
+✔ **장점**  
+- 실제 객체를 사용하므로 **테스트가 직관적**이고, **객체 간의 협력을 자연스럽게 검증**할 수 있음.  
+- **상태 기반 검증(State Verification)**을 사용하여, 내부 구현에 덜 의존적임.  
+
+✔ **단점**  
+- 테스트에서 **실제 객체를 사용하므로 의존성이 강함**.  
+- 테스트 데이터가 많아질수록 **설정이 복잡해지고 실행 속도가 느려질 가능성**이 있음.  
+
+---
+
+### **📌 2-2. Mockist TDD (Mock 객체 사용)**
+✅ **특징**  
+- **Mock 객체를 사용하여 협력 객체의 동작을 시뮬레이션**  
+- **객체 간의 상호작용을 검증**하는 방식 (**행위 검증**)  
+- 테스트가 **더 빠르고 독립적**이지만, **구현 방식에 의존적**일 수 있음.
+
+✅ **Mockist TDD 예제**
+```java
+import static org.mockito.Mockito.*;
+
+class OrderTest {
+    @Test
+    void 주문이_가능하면_창고에서_재고가_감소해야_한다() {
+        // Given
+        Product product = new Product("MacBook");
+        Warehouse warehouse = mock(Warehouse.class);  // Mock 객체 생성
+        Order order = new Order(product, 5);
+
+        when(warehouse.hasStock(product, 5)).thenReturn(true);  // 재고 확인 동작 설정
+
+        // When
+        order.process(warehouse);
+
+        // Then (행위 검증)
+        verify(warehouse).removeStock(product, 5);  // 창고에서 재고가 줄었는지 검증
+        verify(warehouse).hasStock(product, 5);  // 재고 확인이 호출되었는지 검증
+    }
+}
+```
+✔ **장점**  
+- **테스트 실행 속도가 빠름** (실제 객체를 생성하지 않음)  
+- **단위 테스트가 독립적으로 실행 가능**  
+- **데이터베이스나 네트워크 API 같은 외부 의존성 없이 테스트 가능**  
+
+✔ **단점**  
+- **구현에 의존적**이므로, 내부 로직이 바뀌면 테스트도 함께 수정해야 함.  
+- **Mock 설정이 많아질 경우, 테스트가 복잡해질 수 있음.**  
+
+---
+
+## **🔍 3. Classic TDD vs. Mockist TDD 차이점 정리**
+| **비교 항목** | **Classic TDD** | **Mockist TDD** |
+|------------|-------------|-------------|
+| **검증 방식** | 상태 검증 (State Verification) | 행위 검증 (Behavior Verification) |
+| **테스트 대상** | 실제 객체 사용 | Mock 객체 사용 |
+| **테스트 속도** | 비교적 느림 (객체 생성 및 데이터 설정 필요) | 빠름 (Mock 객체 사용) |
+| **독립성** | 협력 객체가 함께 동작 | 협력 객체를 Mock으로 대체 |
+| **유지보수성** | 내부 구현 변경 시 테스트 영향 적음 | 내부 구현 변경 시 Mock 설정도 변경해야 함 |
+| **테스트 안정성** | 비교적 안정적 | Mock 설정이 많아지면 유지보수가 어려워질 수 있음 |
+
+---
+
+## **🔍 4. Inside-Out vs. Outside-In 개발 방식**
+TDD 방식에 따라 **개발 진행 방식**도 달라집니다.  
+
+### **📌 4-1. Inside-Out (Classicist)**
+- 도메인(내부 로직)부터 개발을 진행하고, 점차 외부(컨트롤러)로 확장해 나가는 방식.  
+- **초보자가 적용하기 쉬우며, 코드 구조를 자연스럽게 설계할 수 있음**.  
+- 하지만 **객체 간 협력이 어색해질 가능성이 있음**.
+
+✅ **Inside-Out 개발 예제**  
+1️⃣ **상품(Product) 개발**  
+2️⃣ **창고(Warehouse) 개발** (상품을 관리)  
+3️⃣ **주문(Order) 개발** (창고와 상호작용)  
+4️⃣ **컨트롤러 개발** (사용자의 요청 처리)
+
+---
+
+### **📌 4-2. Outside-In (Mockist)**
+- UI나 컨트롤러 같은 **외부부터 개발을 진행하고, 내부 도메인을 설계하는 방식**.  
+- 객체 간의 협력을 명확하게 정의할 수 있지만, **설계에 대한 깊은 이해가 필요함**.  
+- **Mock 객체를 적극적으로 활용하여, 상호작용을 먼저 정의**한 후 내부 구현을 진행.
+
+✅ **Outside-In 개발 예제**  
+1️⃣ **컨트롤러(Controller) 개발**  
+2️⃣ **주문(Order) 개발** (Mock을 사용하여 창고와 협력)  
+3️⃣ **창고(Warehouse) 개발**  
+4️⃣ **상품(Product) 개발**  
+
+---
+
+## **🚀 결론**
+1️⃣ **Classicist(Inside-Out) TDD**: 실제 객체를 사용하여 상태 검증을 수행, 내부에서부터 개발 진행.  
+2️⃣ **Mockist(Outside-In) TDD**: Mock을 사용하여 행위 검증을 수행, 외부에서부터 개발 진행.  
+3️⃣ **각 방식에는 장단점이 있으므로, 특정 상황에 따라 적절한 방식을 선택하는 것이 중요하다.**  
+
+💡 **결론적으로, 한 가지 방법만 고집할 필요는 없습니다.**  
+**각 상황에 맞춰 Classicist와 Mockist TDD를 적절히 활용하는 것이 중요합니다!** 🚀
+
